@@ -117,7 +117,11 @@
     const channel = 'line-chat-v1';
     const tabId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
     const bus = 'BroadcastChannel' in window ? new BroadcastChannel(channel) : null;
-    const gun = window.Gun ? Gun({ peers: ['https://gun-manhattan.herokuapp.com/gun'] }) : null;
+    const gun = window.Gun ? Gun({ peers: [
+      'https://gun-manhattan.herokuapp.com/gun',
+      'https://gun-us.herokuapp.com/gun',
+      'https://gunjs.herokuapp.com/gun'
+    ] }) : null;
     const gunUsers = gun?.get('line-users');
     const gunMessages = gun?.get('line-messages');
     const gunInbox = gun?.get('line-inbox');
