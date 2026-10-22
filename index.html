@@ -101,7 +101,7 @@
     <aside class="sidebar">
       <div class="side-top"><div class="logo"><span class="logo-mark"></span>линия</div><div class="status"><span class="dot"></span> онлайн</div></div>
       <p class="section-title">Сейчас на линии</p>
-      <div class="people" id="people"><div class="empty">Пока никого нет. Откройте сайт ещё в одной вкладке.</div></div>
+      <div class="people" id="people"><button class="person " data-id="fa785d11-1148-4635-85ad-5bd6c98cf013"><span class="avatar">FA</span><span class="person-name">Firebase A<small><span class="dot"></span> сейчас онлайн</small></span></button><button class="person " data-id="5b0578ea-71c2-480a-9fb1-8c30571eab23"><span class="avatar">FB</span><span class="person-name">Firebase B<small><span class="dot"></span> сейчас онлайн</small></span></button></div>
       <div class="profile"><div class="avatar" id="myAvatar"></div><div><strong id="myName"></strong><span>ваш профиль</span></div></div>
     </aside>
     <section class="chat">
@@ -111,20 +111,28 @@
     </section>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
     const channel = 'line-chat-v1';
     const tabId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
     const bus = 'BroadcastChannel' in window ? new BroadcastChannel(channel) : null;
-    const gun = window.Gun ? Gun({ peers: [
-      'https://gun-manhattan.herokuapp.com/gun',
-      'https://gun-us.herokuapp.com/gun',
-      'https://gunjs.herokuapp.com/gun'
-    ] }) : null;
-    const gunUsers = gun?.get('line-users');
-    const gunMessages = gun?.get('line-messages');
-    const gunInbox = gun?.get('line-inbox');
+    const firebaseConfig = {
+      apiKey: 'AIzaSyAh3mDw9z_VomPnlmVWvxBAQmpKv_8XA_4',
+      authDomain: 'line-messenger-ztt.firebaseapp.com',
+      projectId: 'line-messenger-ztt',
+      databaseURL: 'https://line-messenger-ztt-default-rtdb.firebaseio.com',
+      storageBucket: 'line-messenger-ztt.firebasestorage.app',
+      messagingSenderId: '191126531778',
+      appId: '1:191126531778:web:0fa28ee9b56635fd64955b'
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const userRef = db.ref('line-users/' + tabId);
+    const usersRef = db.ref('line-users');
+    const messagesRef = db.ref('line-messages');
+    const inboxRef = db.ref('line-inbox/' + tabId);
     const activeRooms = new Set();
     let me = null, selected = null, people = {}, messages = {}, seen = new Set();
 
@@ -132,7 +140,7 @@
     const keyFor = (a, b) => [a, b].sort().join('::');
     const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     function emit(data) { const event = { ...data, eid: tabId + '-' + Date.now() + '-' + Math.random() }; bus?.postMessage(event); try { localStorage.setItem('line-chat-event', JSON.stringify(event)); } catch {} }
-    function announce() { if (me) { const at = Date.now(); emit({ type: 'presence', id: tabId, name: me, at }); gunUsers?.get(tabId).put({ name: me, at, online: true }); } }
+    function announce() { if (me) { const at = Date.now(); emit({ type: 'presence', id: tabId, name: me, at }); userRef.update({ name: me, at, online: true }); } }
     function renderPeople() {
       const list = Object.entries(people).filter(([id, person]) => id !== tabId && person.online !== false && Date.now() - (person.at || 0) < 9000).sort((a, b) => a[1].name.localeCompare(b[1].name));
       $('people').innerHTML = list.length ? list.map(([id, person]) => `<button class="person ${selected === id ? 'active' : ''}" data-id="${id}"><span class="avatar">${initials(person.name)}</span><span class="person-name">${person.name}<small><span class="dot"></span> сейчас онлайн</small></span></button>`).join('') : '<div class="empty">Пока никого нет. Откройте сайт ещё в одной вкладке.</div>';
@@ -143,22 +151,23 @@
       $('messages').innerHTML = selected && list.length ? list.map(m => `<div class="message ${m.from === tabId ? 'mine' : ''}"><div class="bubble">${m.text.replace(/[&<>]/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[s]))}</div><span class="time">${m.time}</span></div>`).join('') : '<div class="no-chat"><strong>' + (selected ? 'Пока тихо' : 'Начните разговор') + '</strong>' + (selected ? 'Напишите первое сообщение.' : 'Выберите человека слева — сообщения появятся здесь.') + '</div>';
       $('messages').scrollTop = $('messages').scrollHeight;
     }
-    function watchRoom(id) { const room = keyFor(tabId, id); if (!gunMessages || activeRooms.has(room)) return; activeRooms.add(room); gunMessages.get(room).map().on((value) => { if (!value || !value.from || value.from === tabId || value.to !== tabId) return; receive({ type: 'message', from: value.from, to: tabId, name: value.name, message: value }); }); }
+    function watchRoom(id) { const room = keyFor(tabId, id); if (activeRooms.has(room)) return; activeRooms.add(room); messagesRef.child(room).on('child_added', snap => { const value = snap.val(); if (!value || !value.from || value.from === tabId || value.to !== tabId) return; receive({ type: 'message', from: value.from, to: tabId, name: value.name, message: value }); }); }
     function selectPerson(id) { selected = id; const person = people[id]; if (!person) return; watchRoom(id); $('chatTitle').textContent = person.name; $('chatStatus').textContent = 'сейчас онлайн'; $('chatAvatar').textContent = initials(person.name); $('message').disabled = false; document.querySelector('#composer .send').disabled = false; renderPeople(); renderMessages(); $('message').focus(); }
     function receive(data) {
-      if (data.eid) { if (seen.has(data.eid)) return; seen.add(data.eid); }
+      const eventId = data.eid || data.message?.eid; if (eventId) { if (seen.has(eventId)) return; seen.add(eventId); }
       if (data.type === 'presence' && data.id !== tabId) { people[data.id] = { name: data.name, at: data.at }; renderPeople(); return; }
       if (data.type === 'leave') { delete people[data.id]; if (selected === data.id) { selected = null; $('chatTitle').textContent = 'Выберите собеседника'; $('chatStatus').textContent = 'Чтобы начать разговор'; $('chatAvatar').textContent = '?'; $('message').disabled = true; document.querySelector('#composer .send').disabled = true; renderMessages(); } renderPeople(); return; }
       if (data.type === 'message') { const key = keyFor(data.from, data.to); messages[key] = [...(messages[key] || []), data.message]; if (data.to === tabId) { people[data.from] = { name: data.name, at: Date.now() }; if (!selected) selectPerson(data.from); } if (selected === data.from || selected === data.to) renderMessages(); }
     }
     function join() { const value = $('name').value.trim(); if (!value) { $('name').focus(); return; } me = value; $('welcome').classList.add('hidden'); $('app').classList.remove('hidden'); $('myName').textContent = me; $('myAvatar').textContent = initials(me); announce(); setInterval(announce, 2500); }
     $('join').addEventListener('click', join); $('name').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
-    $('composer').addEventListener('submit', e => { e.preventDefault(); const text = $('message').value.trim(); if (!text || !selected) return; const message = { from: tabId, to: selected, name: me, text, time: now(), sentAt: Date.now() }; const key = keyFor(tabId, selected); messages[key] = [...(messages[key] || []), message]; emit({ type: 'message', from: tabId, to: selected, name: me, message }); gunMessages?.get(key).set(message); gunInbox?.get(selected).set(message); $('message').value = ''; renderMessages(); });
+    $('composer').addEventListener('submit', e => { e.preventDefault(); const text = $('message').value.trim(); if (!text || !selected) return; const message = { from: tabId, to: selected, name: me, text, time: now(), sentAt: Date.now(), eid: tabId + '-' + Date.now() + '-' + Math.random() }; const key = keyFor(tabId, selected); messages[key] = [...(messages[key] || []), message]; emit({ type: 'message', from: tabId, to: selected, name: me, message }); messagesRef.child(key).push(message); db.ref('line-inbox/' + selected).push(message); $('message').value = ''; renderMessages(); });
     bus?.addEventListener('message', e => receive(e.data));
     window.addEventListener('storage', e => { if (e.key === 'line-chat-event' && e.newValue) { try { receive(JSON.parse(e.newValue)); } catch {} } });
-    window.addEventListener('beforeunload', () => { emit({ type: 'leave', id: tabId }); gunUsers?.get(tabId).put({ online: false, at: Date.now() }); });
-    gunUsers?.map().on((value, id) => { if (!value || id === tabId || !value.name) return; people[id] = { name: value.name, at: value.at, online: value.online }; renderPeople(); });
-    gunInbox?.get(tabId).map().on((value) => { if (!value || !value.from || value.from === tabId) return; receive({ type: 'message', from: value.from, to: tabId, name: value.name, message: value }); });
+    userRef.onDisconnect().update({ online: false, at: 0 });
+    window.addEventListener('beforeunload', () => { emit({ type: 'leave', id: tabId }); userRef.update({ online: false, at: 0 }); });
+    usersRef.on('value', snapshot => { people = snapshot.val() || {}; renderPeople(); });
+    inboxRef.on('child_added', snapshot => { const value = snapshot.val(); if (!value || !value.from || value.from === tabId) return; receive({ type: 'message', from: value.from, to: tabId, name: value.name, message: value }); });
   </script>
 
 
