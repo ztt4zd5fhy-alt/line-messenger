@@ -1,0 +1,161 @@
+<html lang="ru"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f7fb">
+  <title>Линия — простой мессенджер</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --ink: #182230;
+      --muted: #788397;
+      --line: #e6eaf0;
+      --accent: #3e63ff;
+      --accent-soft: #edf1ff;
+      --online: #43b47b;
+      --shadow: 0 18px 45px rgba(29, 44, 73, .08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font: 15px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input { font: inherit; }
+    button { border: 0; cursor: pointer; }
+    .hidden { display: none !important; }
+    .welcome { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .welcome-card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 34px; box-shadow: var(--shadow); }
+    .logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 20px; letter-spacing: -.03em; }
+    .logo-mark { width: 30px; height: 30px; border-radius: 10px; background: var(--accent); position: relative; }
+    .logo-mark::after { content: ""; position: absolute; width: 11px; height: 11px; background: #fff; border-radius: 50%; left: 9px; top: 8px; }
+    h1 { margin: 46px 0 10px; font-size: clamp(30px, 7vw, 42px); line-height: 1.02; letter-spacing: -.05em; }
+    .welcome p { margin: 0 0 28px; color: var(--muted); font-size: 16px; }
+    .field-label { display: block; margin: 0 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    .name-input { width: 100%; border: 1px solid var(--line); background: #fbfcfe; border-radius: 12px; padding: 13px 14px; outline: none; transition: .2s; }
+    .name-input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+    .primary { width: 100%; margin-top: 12px; border-radius: 12px; padding: 13px 16px; background: var(--accent); color: white; font-weight: 700; transition: transform .2s, background .2s; }
+    .primary:hover { background: #304fd6; transform: translateY(-1px); }
+    .hint { margin-top: 18px !important; font-size: 12px !important; line-height: 1.5; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 280px minmax(0, 760px); justify-content: center; gap: 18px; padding: 18px; }
+    .sidebar, .chat { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
+    .sidebar { padding: 18px; display: flex; flex-direction: column; min-height: calc(100vh - 36px); }
+    .side-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .status { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--online); }
+    .section-title { margin: 0 0 10px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+    .people { display: grid; gap: 6px; }
+    .person { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; background: transparent; border-radius: 12px; text-align: left; color: var(--ink); }
+    .person:hover, .person.active { background: var(--accent-soft); }
+    .avatar { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: #dbe2ff; color: #3853b8; font-weight: 800; font-size: 13px; }
+    .person-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .person-name small { display: block; color: var(--muted); font-size: 11px; margin-top: 1px; }
+    .empty { color: var(--muted); font-size: 13px; padding: 10px 2px; }
+    .profile { margin-top: auto; padding-top: 20px; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--line); }
+    .profile strong { display: block; font-size: 13px; }
+    .profile span { color: var(--muted); font-size: 11px; }
+    .chat { min-height: calc(100vh - 36px); display: flex; flex-direction: column; overflow: hidden; }
+    .chat-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+    .chat-heading { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .chat-heading h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-heading p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .messages { flex: 1; min-height: 300px; padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .no-chat { margin: auto; text-align: center; color: var(--muted); max-width: 260px; }
+    .no-chat strong { display: block; color: var(--ink); margin-bottom: 6px; font-size: 16px; }
+    .message { max-width: min(76%, 460px); display: flex; flex-direction: column; gap: 4px; align-self: flex-start; }
+    .message.mine { align-self: flex-end; align-items: flex-end; }
+    .bubble { padding: 10px 13px; border-radius: 15px 15px 15px 4px; background: #f0f2f6; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .mine .bubble { background: var(--accent); color: #fff; border-radius: 15px 15px 4px 15px; }
+    .time { color: var(--muted); font-size: 10px; padding: 0 4px; }
+    .composer { padding: 14px 18px 18px; border-top: 1px solid var(--line); display: flex; gap: 10px; }
+    .composer input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px 13px; outline: none; }
+    .composer input:focus { border-color: var(--accent); }
+    .send { width: 46px; border-radius: 12px; background: var(--accent); color: #fff; font-size: 18px; }
+    .send:disabled { background: #cbd2e3; cursor: default; }
+    @media (max-width: 760px) {
+      .app { display: block; padding: 0; }
+      .sidebar { min-height: 0; border: 0; border-radius: 0; box-shadow: none; padding: 14px 16px 12px; }
+      .side-top { margin-bottom: 14px; }
+      .people { display: flex; overflow-x: auto; padding-bottom: 2px; }
+      .person { min-width: 130px; width: auto; background: #f8f9fc; }
+      .person-name small { display: none; }
+      .profile { display: none; }
+      .section-title { margin-bottom: 7px; }
+      .chat { min-height: calc(100vh - 137px); border: 0; border-radius: 0; box-shadow: none; border-top: 1px solid var(--line); }
+      .chat-head { padding: 16px; }
+      .messages { padding: 18px 16px; }
+      .composer { padding: 12px 16px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <section class="welcome" id="welcome">
+    <div class="welcome-card">
+      <div class="logo"><span class="logo-mark"></span>линия</div>
+      <h1>Будьте на связи.</h1>
+      <p>Введите имя и посмотрите, кто сейчас онлайн.</p>
+      <label class="field-label" for="name">Ваше имя</label>
+      <input class="name-input" id="name" maxlength="24" autocomplete="nickname" placeholder="Например, Маша">
+      <button class="primary" id="join">Войти в чат</button>
+      <p class="hint">Линия работает прямо в браузере. Откройте сайт в двух вкладках, чтобы попробовать обмен сообщениями.</p>
+    </div>
+  </section>
+
+  <main class="app hidden" id="app">
+    <aside class="sidebar">
+      <div class="side-top"><div class="logo"><span class="logo-mark"></span>линия</div><div class="status"><span class="dot"></span> онлайн</div></div>
+      <p class="section-title">Сейчас на линии</p>
+      <div class="people" id="people"><div class="empty">Пока никого нет. Откройте сайт ещё в одной вкладке.</div></div>
+      <div class="profile"><div class="avatar" id="myAvatar"></div><div><strong id="myName"></strong><span>ваш профиль</span></div></div>
+    </aside>
+    <section class="chat">
+      <header class="chat-head"><div class="chat-heading"><div class="avatar" id="chatAvatar">?</div><div><h2 id="chatTitle">Выберите собеседника</h2><p id="chatStatus">Чтобы начать разговор</p></div></div></header>
+      <div class="messages" id="messages"><div class="no-chat"><strong>Начните разговор</strong>Выберите человека слева — сообщения появятся здесь.</div></div>
+      <form class="composer" id="composer"><input id="message" autocomplete="off" placeholder="Напишите сообщение..." disabled=""><button class="send" aria-label="Отправить" disabled="">↑</button></form>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const channel = 'line-chat-v1';
+    const tabId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random();
+    const bus = 'BroadcastChannel' in window ? new BroadcastChannel(channel) : null;
+    const gun = window.Gun ? Gun({ peers: ['https://gun-manhattan.herokuapp.com/gun'] }) : null;
+    const gunUsers = gun?.get('line-users');
+    const gunMessages = gun?.get('line-messages');
+    const gunInbox = gun?.get('line-inbox');
+    const activeRooms = new Set();
+    let me = null, selected = null, people = {}, messages = {}, seen = new Set();
+
+    const initials = (name) => name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+    const keyFor = (a, b) => [a, b].sort().join('::');
+    const now = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    function emit(data) { const event = { ...data, eid: tabId + '-' + Date.now() + '-' + Math.random() }; bus?.postMessage(event); try { localStorage.setItem('line-chat-event', JSON.stringify(event)); } catch {} }
+    function announce() { if (me) { const at = Date.now(); emit({ type: 'presence', id: tabId, name: me, at }); gunUsers?.get(tabId).put({ name: me, at, online: true }); } }
+    function renderPeople() {
+      const list = Object.entries(people).filter(([id, person]) => id !== tabId && person.online !== false && Date.now() - (person.at || 0) < 9000).sort((a, b) => a[1].name.localeCompare(b[1].name));
+      $('people').innerHTML = list.length ? list.map(([id, person]) => `<button class="person ${selected === id ? 'active' : ''}" data-id="${id}"><span class="avatar">${initials(person.name)}</span><span class="person-name">${person.name}<small><span class="dot"></span> сейчас онлайн</small></span></button>`).join('') : '<div class="empty">Пока никого нет. Откройте сайт ещё в одной вкладке.</div>';
+      document.querySelectorAll('.person').forEach(el => el.addEventListener('click', () => selectPerson(el.dataset.id)));
+    }
+    function renderMessages() {
+      const list = selected ? (messages[keyFor(tabId, selected)] || []) : [];
+      $('messages').innerHTML = selected && list.length ? list.map(m => `<div class="message ${m.from === tabId ? 'mine' : ''}"><div class="bubble">${m.text.replace(/[&<>]/g, s => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[s]))}</div><span class="time">${m.time}</span></div>`).join('') : '<div class="no-chat"><strong>' + (selected ? 'Пока тихо' : 'Начните разговор') + '</strong>' + (selected ? 'Напишите первое сообщение.' : 'Выберите человека слева — сообщения появятся здесь.') + '</div>';
+      $('messages').scrollTop = $('messages').scrollHeight;
+    }
+    function watchRoom(id) { const room = keyFor(tabId, id); if (!gunMessages || activeRooms.has(room)) return; activeRooms.add(room); gunMessages.get(room).map().on((value) => { if (!value || !value.from || value.from === tabId || value.to !== tabId) return; receive({ type: 'message', from: value.from, to: tabId, name: value.name, message: value }); }); }
+    function selectPerson(id) { selected = id; const person = people[id]; if (!person) return; watchRoom(id); $('chatTitle').textContent = person.name; $('chatStatus').textContent = 'сейчас онлайн'; $('chatAvatar').textContent = initials(person.name); $('message').disabled = false; document.querySelector('#composer .send').disabled = false; renderPeople(); renderMessages(); $('message').focus(); }
+    function receive(data) {
+      if (data.eid) { if (seen.has(data.eid)) return; seen.add(data.eid); }
+      if (data.type === 'presence' && data.id !== tabId) { people[data.id] = { name: data.name, at: data.at }; renderPeople(); return; }
+      if (data.type === 'leave') { delete people[data.id]; if (selected === data.id) { selected = null; $('chatTitle').textContent = 'Выберите собеседника'; $('chatStatus').textContent = 'Чтобы начать разговор'; $('chatAvatar').textContent = '?'; $('message').disabled = true; document.querySelector('#composer .send').disabled = true; renderMessages(); } renderPeople(); return; }
+      if (data.type === 'message') { const key = keyFor(data.from, data.to); messages[key] = [...(messages[key] || []), data.message]; if (data.to === tabId) { people[data.from] = { name: data.name, at: Date.now() }; if (!selected) selectPerson(data.from); } if (selected === data.from || selected === data.to) renderMessages(); }
+    }
+    function join() { const value = $('name').value.trim(); if (!value) { $('name').focus(); return; } me = value; $('welcome').classList.add('hidden'); $('app').classList.remove('hidden'); $('myName').textContent = me; $('myAvatar').textContent = initials(me); announce(); setInterval(announce, 2500); }
+    $('join').addEventListener('click', join); $('name').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+    $('composer').addEventListener('submit', e => { e.preventDefault(); const text = $('message').value.trim(); if (!text || !selected) return; const message = { from: tabId, to: selected, name: me, text, time: now(), sentAt: Date.now() }; const key = keyFor(tabId, selected); messages[key] = [...(messages[key] || []), message]; emit({ type: 'message', from: tabId, to: selected, name: me, message }); gunMessages?.get(key).set(message); gunInbox?.get(selected).set(message); $('message').value = ''; renderMessages(); });
+    bus?.addEventListener('message', e => receive(e.data));
+    window.addEventListener('storage', e => { if (e.key === 'line-chat-event' && e.newValue) { try { receive(JSON.parse(e.newValue)); } catch {} } });
+    window.addEventListener('beforeunload', () => { emit({ type: 'leave', id: tabId }); gunUsers?.get(tabId).put({ online: false, at: Date.now() }); });
+    gunUsers?.map().on((value, id) => { if (!value || id === tabId || !value.name) return; people[id] = { name: value.name, at: value.at, online: value.online }; renderPeople(); });
+    gunInbox?.get(tabId).map().on((value) => { if (!value || !value.from || value.from === tabId) return; receive({ type: 'message', from: value.from, to: tabId, name: value.name, message: value }); });
+  </script>
+
+
+</body><div id="codex-browser-sidebar-comments-root" style="position: fixed; inset: 0px; pointer-events: none; z-index: 2147483647;"></div></html>
